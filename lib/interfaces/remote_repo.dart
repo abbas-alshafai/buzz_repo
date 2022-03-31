@@ -9,8 +9,9 @@ abstract class RemoteRepo<T> {
   Future init();
   RemoteRepo ofTable(String table, {bool? hasBusinessStoreSwitcher});
   RemoteRepo fromJson(FromJsonFunc<T> fromJsonFunc);
-  Future<Result<String>> add<T>(JsonObject object);
   Future<Result<T>> get<T>(IDs id);
+  Future<Result<String>> add<T>(JsonObject object);
+  Future<Result<T>> update<T>(JsonObject dto);
   Future<Result<List<T>>> getAll<T>({
     int limit = 500,
     String orderByField,
@@ -30,7 +31,7 @@ abstract class RemoteRepo<T> {
   });
   delete(IDs id);
 
-  Future<Result<T>> update<T>(JsonObject dto);
+
   Future<Result> getWhereIn<T>(
       {required List<T> list, required String fieldName});
 
