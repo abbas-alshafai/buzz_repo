@@ -11,6 +11,7 @@ abstract class RemoteRepo<T> {
   RemoteRepo fromJson(FromJsonFunc<T> fromJsonFunc);
   Future<Result<T>> get<T>(IDs id);
   Future<Result<String>> add<T>(JsonObject object);
+  Future<Result<T>> addById<T>(JsonObject object);
   Future<Result<T>> update<T>(JsonObject dto);
   Future<Result<List<T>>> getAll<T>({
     int limit = 500,
