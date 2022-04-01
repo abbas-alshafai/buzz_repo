@@ -13,8 +13,9 @@ abstract class RemoteRepo<T> {
   Future<Result<String>> add<T>(JsonObject object);
   Future<Result<T>> addById<T>(JsonObject object);
   Future<Result<T>> update<T>(JsonObject dto);
+
   Future<Result<List<T>>> getAll<T>({
-    int limit = 500,
+    int? limit,
     String orderByField,
     bool descending = false,
     Object? field,
