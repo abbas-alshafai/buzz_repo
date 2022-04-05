@@ -1,5 +1,9 @@
 import 'package:buzz_utils/buzz_utils.dart';
+import 'package:copy_with_extension/copy_with_extension.dart';
 
+part 'ids.g.dart';
+
+@CopyWith()
 class IDs{
 
   final String? id;

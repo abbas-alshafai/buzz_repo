@@ -11,6 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  copy_with_extension_gen: ^4.0.1
+
   buzz_result:
     git:
       ref: master
@@ -25,6 +27,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^1.0.0
-
+  build_runner: ^2.1.7
+  copy_with_extension: ^4.0.0
 
 flutter:
