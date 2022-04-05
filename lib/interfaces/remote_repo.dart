@@ -16,7 +16,7 @@ abstract class RemoteRepo<T> {
 
   Future<Result<List<T>>> getAll<T>({
     int? limit,
-    String orderByField,
+    String? orderByField,
     bool descending = false,
     Object? field,
     Object? isEqualTo,
