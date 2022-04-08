@@ -17,6 +17,10 @@ dependencies:
     git:
       ref: master
       url: https://github.com/abbas-alshafai/buzz_result
+  buzz_logger:
+    git:
+      ref: master
+      url: https://github.com/abbas-alshafai/buzz_logger
   buzz_utils:
     git:
       ref: master
