@@ -54,8 +54,8 @@ class BaseController<T> {
   Future<Result<T>> update<T>(JsonObject<T> dto) async =>
       await service.update<T>(dto);
 
-  Future<Result<T>> addById<T>(String id, JsonObject<T> dto) async =>
-      await service.addById<T>(id, dto);
+  Future<Result<T>> addById<T>(JsonObject<T> dto) async =>
+      await service.addById<T>(dto);
 
   Future<Result<T>> write<T>(JsonObject<T> dto) async =>
       StringUtils.instance.isBlank(dto.ids.id)

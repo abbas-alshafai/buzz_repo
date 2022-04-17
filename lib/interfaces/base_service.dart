@@ -16,9 +16,7 @@ class BaseService<T> {
   Future<Result<T>> add<T>(JsonObject dto) async =>
       await adapter.add<T>(dto);
 
-  Future<Result<T>> addById<T>(
-      String id, JsonObject dto) async =>
-      await adapter.addById(id, dto);
+  Future<Result<T>> addById<T>(JsonObject dto) async => await adapter.addById(dto);
 
   /*
   return the id of the created object

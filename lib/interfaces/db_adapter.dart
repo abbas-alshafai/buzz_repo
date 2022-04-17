@@ -95,7 +95,7 @@ class DbAdapter<T> {
   }
 
   // TODO refactor and compare against add
-  Future<Result<T>> addById<T>(String id, JsonObject dto) async {
+  Future<Result<T>> addById<T>(JsonObject dto) async {
     LocalDb localDb = await _localRepo;
     try {
       if (includeLocalTrans) {
@@ -403,6 +403,7 @@ class DbAdapter<T> {
 
   Future<LocalDb> get _localRepo async => localDb.ofTable(tableName);
 
-  RemoteRepo get _remoteRepo => _remoteRepo.ofTable(tableName)
+  RemoteRepo get _remoteRepo => _remoteRepo
+      .ofTable(tableName)
       .fromJson(fromJson);
 }
