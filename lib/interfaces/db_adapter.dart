@@ -379,8 +379,6 @@ class DbAdapter<T> {
     required IDs ids,
     JsonObject? dto,
   }) async {
-    // final localDb = await _read(localDbProvider).ofTable(DbConstants.syncTable);
-
     try {
       final result = await localDb.ofTable('sync')..add(
         SyncDto(
