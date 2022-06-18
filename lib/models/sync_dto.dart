@@ -14,6 +14,9 @@ const String _action = 'act';
 
 @CopyWith()
 class SyncDto extends JsonObject<SyncDto> {
+
+  static const String tableName = 'sync';
+
   final String? id;
   final int? localId;
   final String table;

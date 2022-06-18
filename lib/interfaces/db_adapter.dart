@@ -1,71 +1,92 @@
+import 'package:buzz_logger/models/log.dart';
 import 'package:buzz_logger/service/logger.dart';
+import 'package:buzz_repo/constants/repo_constants.dart';
 import 'package:buzz_repo/interfaces/db_typedef.dart';
 import 'package:buzz_repo/interfaces/json_object.dart';
+import 'package:buzz_repo/interfaces/local_repo.dart';
 import 'package:buzz_repo/interfaces/remote_repo.dart';
+import 'package:buzz_repo/models/db_adapter_state.dart';
 import 'package:buzz_repo/models/ids.dart';
+import 'package:buzz_repo/models/sync_dto.dart';
+import 'package:buzz_repo/utils/sync_utils.dart';
 import 'package:buzz_result/models/result.dart';
 import 'package:buzz_utils/buzz_utils.dart';
-import 'package:buzz_logger/models/log.dart';
+import 'package:copy_with_extension/copy_with_extension.dart';
 
-import '../models/sync_dto.dart';
-import '../utils/sync_utils.dart';
-import 'local_repo.dart';
+part 'db_adapter.g.dart';
 
-
+// TODO - add maximum duration on remote trans
+@CopyWith()
 class DbAdapter<T> {
-  final FromJsonFunc<T> fromJson;
-  final bool hasRemotePriority;
-  final bool isRemoteOnly;
-  final String tableName;
-  final bool includeRemoteTrans;
-  final bool includeLocalTrans;
-  final LocalDb localDb;
+  final DbAdapterState? state;
 
-  DbAdapter(
-      {
-        required this.fromJson,
-        required this.tableName,
-        this.hasRemotePriority = false,
-        this.isRemoteOnly = true,
-        this.includeLocalTrans = false,
-        this.includeRemoteTrans = true,
-        required this.localDb,
-      });
+  final FromJsonFunc<T> fromJson;
+  final String tableName;
+  final bool hasRemotePriority;
+
+  DbAdapter({
+    this.state,
+    required this.fromJson,
+    required this.tableName,
+    this.hasRemotePriority = false,
+  });
+
+  bool get includeLocalTransactions =>
+      !(state?.bypassLocal ?? false) && state?.localDb != null;
+
+  bool get includeRemoteTransactions =>
+      !(state?.bypassRemote ?? false) && state?.remoteRepo != null;
+
+  bool get isLocalOnly =>
+      includeLocalTransactions && !includeRemoteTransactions;
+
+  bool get isRemoteOnly =>
+      !includeLocalTransactions && includeRemoteTransactions;
+
+  DbAdapter<T> offline() {
+    final _state = (state as DbAdapterState).copyWith(bypassRemote: true);
+    return copyWith(state: _state);
+  }
 
   /*
   return the id of the created object
    */
-  Future<Result<T>> add<T>(JsonObject dto) async {
-    Logger.d('$tableName: Attempting to add');
-    LocalDb localDb = await _localRepo;
+  Future<Result<T>> add<T>(JsonObject dto,
+      {final bool forceRemoteTrans = false}) async {
+    assert(Logger.debug('$tableName: Attempting to add'));
+    final localDb = await _localRepo();
     try {
       /*
       We start with the local so we get the localId, then we store it remotely
        */
-      if (includeLocalTrans) {
+      if (includeLocalTransactions) {
         Logger.i('$tableName: Attempting to locally add');
         try {
-          final result = await localDb.add<T>(dto);
+          final result = await localDb!.add<T>(dto);
           dto = dto.copyWithIDs(IDs.localId(result));
+          assert(Logger.debug('successfully added locally'));
         } catch (e, st) {
           Logger.error(
             st,
-            '$tableName: An error occurred while locally adding.',
+            '$tableName: An error occurred while locally adding.\n${e.toString()}',
           );
           Result.error(msg: e.toString(), stacktrace: st);
         }
       }
 
-      if (!includeRemoteTrans) {
-        return dto.ids.localId == null
-            ? Result.error()
-            : Result.success(obj: dto as T?);
+      if (!forceRemoteTrans && !includeRemoteTransactions) {
+        if (dto.ids.localId == null) {
+          throw ArgumentError.value(dto.ids.localId, 'localId');
+        }
+        return Result.success(obj: dto as T?);
       }
 
-      Logger.i('$tableName: Attempting to remotely add');
-      final remoteResult = await _remoteRepo.add<T>(dto);
+      Logger.i('$tableName: Attempting to remotely add.');
+      final remoteResult = await _remoteRepo!.add<T>(dto);
 
       if (remoteResult.hasFailedOrNull) {
+        Logger.error(StackTrace.current,
+            '$tableName: adding object to remote repo has failed.');
         dto.isRepoOutOfSync = true;
         await _saveOutOfSync(
           dto: dto,
@@ -81,68 +102,81 @@ class DbAdapter<T> {
         1- if the record is out of sync, when we couldn't add remotely
         2- to update local record with the remote id
        */
-      if (includeLocalTrans) {
-        final result = await localDb.add<T>(dto);
+      if (includeLocalTransactions) {
+        try {
+          final result = await localDb!.add<T>(dto);
+        } catch (e, st) {
+          Logger.error(st,
+              '$tableName: adding object to local repo has failed.\n${e.toString()}');
+        }
       }
 
+      assert(Logger.debug('successfully added remotely'));
       // TODO - report (Result.error) if an error occurs remotely or locally?
       return Result.success(obj: dto as T?);
     } catch (e, st) {
       return _getErrorLog(msg: e.toString(), stacktrace: st);
     } finally {
-      localDb.close();
+      localDb?.close();
     }
   }
 
   // TODO refactor and compare against add
   Future<Result<T>> addById<T>(JsonObject dto) async {
-    LocalDb localDb = await _localRepo;
+    final localDb = await _localRepo();
     try {
-      if (includeLocalTrans) {
+      if (includeLocalTransactions) {
         try {
-          final result = await localDb.add(dto);
+          final result = await localDb!.add<T>(dto);
           dto = dto.copyWithIDs(IDs.localId(result));
         } catch (e, st) {
           Logger.error(st, e.toString());
         }
       }
 
-      if (!includeRemoteTrans) {
+      if (!includeRemoteTransactions) {
         return Result.success(obj: dto as T?);
       }
 
-      final remoteResult = await _remoteRepo.addById(dto);
+      final remoteResult = await _remoteRepo!.add<T>(dto);
 
-      if(remoteResult.hasFailedOrNull) {
+      if (remoteResult.hasFailedOrNull) {
         dto.isRepoOutOfSync = true;
       }
 
-      if (includeLocalTrans) await localDb.add(dto);
+      if (includeLocalTransactions) {
+        await localDb!.add<T>(dto);
+      }
 
       // TODO - report (Result.error) if an error occurs remotely or locally?
       return Result.success(obj: dto as T?);
     } catch (e, st) {
       return _getErrorLog(msg: e.toString(), stacktrace: st);
     } finally {
-      localDb.close();
+      localDb?.close();
     }
   }
 
   Future<Result<T>> get<T>(IDs ids) async {
-    LocalDb localDb = await _localRepo;
+    final localDb = await _localRepo();
     try {
-      if (hasRemotePriority) {
-        final result = await _remoteRepo.get<T>(ids);
+      if (hasRemotePriority && includeRemoteTransactions) {
+        final result = await _remoteRepo!.get<T>(ids);
         if (result.isSuccessfulObj) return result;
       }
 
-      if (includeLocalTrans && ids.localId != null) {
-        final result = await localDb.get<T>(ids);
+      if (includeLocalTransactions && ids.localId != null) {
+        final result = await localDb!.get<T>(ids);
         if (result.isSuccessfulObj) return result;
       }
 
-      if (includeRemoteTrans && StringUtils.instance.isNotBlank(ids.id)) {
-        return await _remoteRepo.get<T>(ids);
+      if (includeRemoteTransactions &&
+          StringUtils.instance.isNotBlank(ids.id)) {
+        final remoteResult = await _remoteRepo!.get<T>(ids);
+        if (remoteResult.isSuccessfulObj) {
+          await localDb!.add<T>(remoteResult.obj as JsonObject<T>);
+        }
+        return remoteResult;
       }
 
       return Result.error(
@@ -154,72 +188,56 @@ class DbAdapter<T> {
     }
   }
 
-  Future<Result<List<T>>> getInById<T>({required List<dynamic> list}) async {
-    LocalDb localDb = await _localRepo;
-    try {
-      return await _remoteRepo.getInById<T>(list: list);
-    } catch (e, st) {
-      return _getErrorLog(msg: e.toString(), stacktrace: st);
-    } finally {
-      localDb.close();
-    }
-  }
-
-  Future<Result> getWhereIn<T>(
-      {required List<T> list, required String fieldName}) async {
-    LocalDb localDb = await _localRepo;
-    try {
-      return await _remoteRepo.getWhereIn(list: list, fieldName: fieldName);
-    } catch (e, st) {
-      return _getErrorLog(msg: e.toString(), stacktrace: st);
-    } finally {
-      localDb.close();
-    }
-  }
-
-  Future<Result<List<T>>> getListsWhereIn(
-      {required List<List<dynamic>> lists, required dynamic fieldName}) async {
-    LocalDb localDb = await _localRepo;
-    try {
-      return await _remoteRepo.getListsWhereIn(
-          lists: lists, fieldName: fieldName);
-    } catch (e, st) {
-      return _getErrorLog(msg: e.toString(), stacktrace: st);
-    } finally {
-      localDb.close();
-    }
-  }
-
-  Future<Result<List<T>>> getIn(
-      {required List<dynamic> list, required dynamic fieldName}) async {
-    LocalDb localDb = await _localRepo;
-    try {
-      return await getIn(list: list, fieldName: fieldName);
-    } catch (e, st) {
-      return _getErrorLog(msg: e.toString(), stacktrace: st);
-    } finally {
-      localDb.close();
-    }
-  }
-
   Future<Result<T>> update<T>(JsonObject dto) async {
-    LocalDb localDb = await _localRepo;
+    final localDb = await _localRepo();
     try {
-      if (includeRemoteTrans) {
-        final remoteResult = await _remoteRepo.update<T>(dto);
+      assert(dto.ids.id != null || dto.ids.localId != null);
 
-        if (remoteResult.hasFailedOrNull) {
-          dto.isRepoOutOfSync = true;
-          _saveOutOfSync(ids: dto.ids, action: SyncAction.update, dto: dto);
+      if (dto.ids.id == null && dto.ids.localId == null) {
+        return add(dto);
+      }
+
+      // if not added locally
+      if (includeRemoteTransactions &&
+          includeLocalTransactions &&
+          dto.ids.localId == null) {
+        try {
+          final result = await localDb!.add<T>(dto);
+          dto.copyWithIDs(dto.ids.copyWith(localId: result));
+        } catch (e, st) {
+          Logger.error(st, e.toString());
         }
       }
 
-      if (includeLocalTrans) {
-        final result = await localDb.update<T>(dto);
-        if (result.hasFailed) {
-          ; // TODO
-          return result;
+      if (includeRemoteTransactions) {
+        if (dto.ids.id == null) {
+          final Result<String> remoteResult = await _remoteRepo!.add<T>(dto);
+          if (remoteResult.hasFailedOrNull) {
+            dto.isRepoOutOfSync = true;
+            _saveOutOfSync(ids: dto.ids, action: SyncAction.update, dto: dto);
+          } else {
+            dto.copyWithIDs(
+                dto.ids.copyWith(id: (remoteResult.obj! as String)));
+          }
+        } else {
+          final Result<T> remoteResult = await _remoteRepo!.update(dto);
+
+          if (remoteResult.hasFailedOrNull) {
+            dto.isRepoOutOfSync = true;
+            _saveOutOfSync(ids: dto.ids, action: SyncAction.update, dto: dto);
+          } else {
+            dto.copyWithIDs(
+              dto.ids.copyWith(id: (remoteResult.obj! as JsonObject).ids.id),
+            );
+          }
         }
+      }
+
+      if (includeLocalTransactions) {
+        final result = await localDb!.update(dto);
+        dto.copyWithIDs(
+          dto.ids.copyWith(localId: (result.obj as JsonObject).ids.localId),
+        );
       }
 
       // TODO - report (Result.error) if an error occurs remotely or locally?
@@ -227,24 +245,30 @@ class DbAdapter<T> {
     } catch (e, st) {
       return _getErrorLog(msg: e.toString(), stacktrace: st);
     } finally {
-      localDb.close();
+      localDb?.close();
     }
   }
 
   Future<Result> deleteById(final IDs ids) async {
     Logger.d('$tableName: Attempting to delete - ${ids.toString()}');
-    LocalDb localDb = await _localRepo;
+    final localDb = await _localRepo();
     try {
       Logger.d('$tableName: Attempting to locally delete - ${ids.toString()}');
-      await localDb.delete(ids);
+      if (includeLocalTransactions) {
+        await localDb!.delete(ids);
+      }
     } catch (e, st) {
       // TODO put in re-sync queue
       Logger.error(st, e.toString());
     }
+
     try {
-      Logger.d('$tableName: Attempting to remotely delete - ${ids.toString()}');
-      await _remoteRepo.delete(ids);
-      Logger.d('$tableName: Successfully deleted remote - ${ids.toString()}');
+      if (includeRemoteTransactions) {
+        Logger.d(
+            '$tableName: Attempting to remotely delete - ${ids.toString()}');
+        await _remoteRepo!.delete(ids);
+        Logger.d('$tableName: Successfully deleted remote - ${ids.toString()}');
+      }
       return Result.success();
     } catch (e, st) {
       await _saveOutOfSync(
@@ -253,15 +277,9 @@ class DbAdapter<T> {
       );
       return _getErrorLog(msg: e.toString(), stacktrace: st);
     } finally {
-      localDb.close();
+      localDb?.close();
     }
   }
-
-  Future<Result> callFunction(
-      {required final String functionName,
-        required final Map<String, dynamic>? data,
-        final int durationSeconds = 30}) async =>
-      _remoteRepo.callFunction(functionName: functionName, data: data);
 
   Future<Result<List<T>>> getAll<T>({
     dynamic field,
@@ -274,16 +292,14 @@ class DbAdapter<T> {
     List<dynamic>? arrayContainsAny,
     List<dynamic>? whereIn,
     bool? isNull,
-    int limit = 500,
+    int limit = 10,
     // Query? query,
     // DocumentSnapshot? startAfterDoc,
   }) async {
-    // await _read(localDbProvider).ref(repo.tableName).getAll<T?>();
-
-    LocalDb localDb = await _localRepo;
+    final localDb = await _localRepo();
     try {
       if (hasRemotePriority) {
-        final result = await _remoteRepo.getAll<T>(
+        final result = await _remoteRepo!.getAll<T>(
           field: field,
           isEqualTo: isEqualTo,
           isLessThan: isLessThan,
@@ -298,37 +314,29 @@ class DbAdapter<T> {
         );
 
         if (result.isSuccessfulObj) {
-          return Result.success(obj: result.obj!);
-          // return Result.success(obj: Utils.instance.getList(result.obj!));
+          return Result.success(obj: result.obj!.whereType<T>().toList());
         }
       }
 
-      if (includeLocalTrans) {
+      if (includeLocalTransactions) {
         try {
-          final result = await localDb.getAll<T>(
-            // field: field,
-            // isEqualTo: isEqualTo,
-            // isLessThan: isLessThan,
-            // isLessThanOrEqualTo: isLessThanOrEqualTo,
-            // isGreaterThan: isGreaterThan,
-            // isGreaterThanOrEqualTo: isGreaterThanOrEqualTo,
-            // arrayContains: arrayContains,
-            // arrayContainsAny: arrayContainsAny,
-            // whereIn: whereIn,
-            // isNull: isNull,
-            // limit: limit,
-          );
+          final result = await localDb!.getAll<T>();
 
-          if (result.isSuccessfulObj) {
-            return Result.success(obj: result.obj!);
+          if (result.hasFailed) {
+            Logger.error(
+              StackTrace.current,
+              '$tableName: A failure occurred when locally getting all objects',
+            );
+          } else if (result.isSuccessfulObj) {
+            return Result.success(obj: result.obj!.whereType<T>().toList());
           }
         } catch (e, st) {
           Logger.error(st, e.toString());
         }
       }
 
-      if (includeRemoteTrans) {
-        final result = await _remoteRepo.getAll<T>(
+      if (includeRemoteTransactions) {
+        final result = await _remoteRepo!.getAll<T>(
           field: field,
           isEqualTo: isEqualTo,
           isLessThan: isLessThan,
@@ -345,7 +353,12 @@ class DbAdapter<T> {
         );
 
         if (result.isSuccessfulObj) {
-          return Result.success(obj: result.obj!);
+          return Result.success(obj: result.obj!.whereType<T>().toList());
+        } else {
+          Logger.error(
+            StackTrace.current,
+            '$tableName: A failure occurred when remotely getting all objects',
+          );
         }
       }
 
@@ -355,22 +368,30 @@ class DbAdapter<T> {
     } catch (e, st) {
       return _getErrorLog(msg: e.toString(), stacktrace: st);
     } finally {
-      localDb.close();
+      localDb?.close();
     }
+  }
+
+  Future<Result> close() async {
+    final localDb = await _localRepo();
+    localDb?.close();
+
+    return Result.success();
   }
 
   Result<T> _getErrorLog<T>({
     required final String msg,
     final StackTrace? stacktrace,
-  }) =>
-      Result<T>.error(
-        log: Log(
-          stacktrace: stacktrace,
-          logLevel: LogLevel.ERROR,
-          table: tableName,
-          msg: _buildMessage(msg),
-        ),
-      );
+  }) {
+    Logger.error(stacktrace ?? StackTrace.current, msg);
+    return Result<T>.error(
+      log: Log(
+        stacktrace: stacktrace,
+        logLevel: LogLevel.error,
+        msg: _buildMessage(msg),
+      ),
+    );
+  }
 
   String _buildMessage(final String msg) => '(path $tableName): $msg';
 
@@ -379,8 +400,17 @@ class DbAdapter<T> {
     required IDs ids,
     JsonObject? dto,
   }) async {
+    assert(Logger.debug('buzz repo - about to save an of sync object'));
+    if (!includeLocalTransactions) {
+      assert(Logger.debug('buzz repo - local storage is not allowed.'));
+      return Result.error();
+    }
+
+    final localDb = await _localRepo(table: SyncDto.tableName);
+    final localSyncDb = await localDb?.ofTable(BuzzRepoConstants.syncTable);
+
     try {
-      final result = await localDb.ofTable('sync')..add(
+      final result = await localSyncDb?.add<T>(
         SyncDto(
           id: ids.id,
           localId: ids.localId,
@@ -399,9 +429,19 @@ class DbAdapter<T> {
     }
   }
 
-  Future<LocalDb> get _localRepo async => localDb.ofTable(tableName);
+  Future<LocalDb?> _localRepo({final String? table}) async {
+    final localDb = state?.localDb;
+    if (localDb == null) {
+      return localDb;
+    }
 
-  RemoteRepo get _remoteRepo => _remoteRepo
-      .ofTable(tableName)
-      .fromJson(fromJson);
+    if (!localDb.isInitialized()) {
+      await localDb.init();
+    }
+    return await localDb.ofTable(table ?? tableName);
+  }
+
+  RemoteRepo? get _remoteRepo {
+    return state?.remoteRepo?.ofTable(tableName).fromJson(fromJson);
+  }
 }

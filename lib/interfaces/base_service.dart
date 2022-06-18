@@ -1,40 +1,47 @@
+import 'package:buzz_repo/interfaces/db_adapter.dart';
 import 'package:buzz_repo/interfaces/json_object.dart';
-
 import 'package:buzz_repo/models/ids.dart';
 import 'package:buzz_result/models/result.dart';
+import 'package:copy_with_extension/copy_with_extension.dart';
 
-import 'db_adapter.dart';
+part 'base_service.g.dart';
 
+@CopyWith()
 class BaseService<T> {
-  DbAdapter<T> adapter;
+  final DbAdapter<T> adapter;
 
   BaseService({required this.adapter});
 
-  /// return the id of the created object
-  Future<Result<T>> add<T>(JsonObject dto) async =>
-      await adapter.add<T>(dto);
+  BaseService<T> offline(){
+    final _adapter = adapter.offline();
+    return copyWith(adapter: _adapter);
+  }
 
-  Future<Result<T>> addById<T>(JsonObject dto) async => await adapter.addById(dto);
+  /*
+  return the id of the created object
+   */
+  Future<Result<T>> add<T>(JsonObject dto, {final bool forceRemoteTrans = false}) async =>
+      await adapter.add<T>(dto, forceRemoteTrans: forceRemoteTrans);
 
-  /// return the id of the created object
-  Future<Result<T?>> get<T>(IDs ids) async => await adapter.get<T>(ids);
+  Future<Result<T>> addById<T>(
+          String id, JsonObject dto) async =>
+      await adapter.addById<T>(dto);
 
-  Future<Result<T?>> getOffline<T>(IDs ids) async {
+  /*
+  return the id of the created object
+   */
+  Future<Result<T>> get<T>(IDs ids) async => await adapter.get<T>(ids);
+
+  Future<Result<T>> getOffline<T>(IDs ids) async {
     return await adapter.get<T>(ids);
   }
+
+  Future<Result> deleteById(IDs ids) async => await adapter.deleteById(ids);
+
 
   Future<Result<T>> update<T>(JsonObject<T> dto) async =>
       await adapter.update<T>(dto);
 
-  Future<Result> callFunction(
-      {required final String functionName,
-        required final Map<String, dynamic>? data,
-        final int durationSeconds = 30}) {
-    return adapter.callFunction(
-        functionName: functionName,
-        data: data,
-        durationSeconds: durationSeconds);
-  }
 
   Future<Result<List<T>>> getAll<T>({
     dynamic field,
@@ -47,9 +54,7 @@ class BaseService<T> {
     List<dynamic>? arrayContainsAny,
     List<dynamic>? whereIn,
     bool? isNull,
-    // int limit = 10,
-    // Query? query,
-    // DocumentSnapshot? startAfterDoc,
+    int limit = 10,
   }) async =>
       await adapter.getAll<T>(
         field: field,

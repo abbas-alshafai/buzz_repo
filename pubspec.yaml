@@ -1,6 +1,6 @@
 name: buzz_repo
 description: A package to define local and remote repos
-version: 0.0.1
+version: 0.0.3
 homepage: https://github.com/abbas-alshafai/buzz_repo
 
 environment:
@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  copy_with_extension_gen: ^4.0.1
+  copy_with_extension: ^4.0.0
 
   buzz_result: ^0.0.1
   buzz_logger: ^0.0.1
@@ -23,6 +23,6 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^1.0.0
   build_runner: ^2.1.7
-  copy_with_extension: ^4.0.0
+  copy_with_extension_gen: ^4.0.2
 
 flutter:

@@ -3,4 +3,5 @@ class BuzzRepoConstants{
   static const String localId = 'lid';
   static const String cacheId = 'cid';
   static const String uid = 'uid';
+  static const String syncTable = 'sync';
 }

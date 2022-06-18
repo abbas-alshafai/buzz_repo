@@ -83,6 +83,6 @@ class _$SyncDtoCWProxyImpl implements _$SyncDtoCWProxy {
 }
 
 extension $SyncDtoCopyWith on SyncDto {
-  /// Returns a callable class that can be used as follows: `instanceOfclass SyncDto extends JsonObject<SyncDto>.name.copyWith(...)` or like so:`instanceOfclass SyncDto extends JsonObject<SyncDto>.name.copyWith.fieldName(...)`.
+  /// Returns a callable class that can be used as follows: `instanceOfSyncDto.copyWith(...)` or like so:`instanceOfSyncDto.copyWith.fieldName(...)`.
   _$SyncDtoCWProxy get copyWith => _$SyncDtoCWProxyImpl(this);
 }
