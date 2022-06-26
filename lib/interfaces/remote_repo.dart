@@ -11,6 +11,8 @@ abstract class RemoteRepo<T> {
 
   RemoteRepo ofTable(String table, {final bool hasPrePath = false});
 
+  RemoteRepo ofPath(String path, {final bool hasPrePath = false});
+
   RemoteRepo fromJson(FromJsonFunc<T> fromJsonFunc);
 
   Future<Result<T>> get<T>(IDs id);

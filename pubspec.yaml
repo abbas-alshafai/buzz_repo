@@ -1,6 +1,6 @@
 name: buzz_repo
 description: A package to define local and remote repos
-version: 0.0.3
+version: 0.0.4
 homepage: https://github.com/abbas-alshafai/buzz_repo
 
 environment:

@@ -1,3 +1,8 @@
-## 0.0.1
+## 0.0.4
+* Added a path for both localdb and remote repo
 
-* TODO: Describe initial release.
+## 0.0.3
+* refactored db adapter and remote repo, so we can inject remote repo in a cleaner way
+
+## 0.0.1
+* init
