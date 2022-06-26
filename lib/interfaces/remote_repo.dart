@@ -9,9 +9,9 @@ abstract class RemoteRepo<T> {
 
   Future init();
 
-  RemoteRepo ofTable(String table, {final bool hasPrePath = false});
+  RemoteRepo ofTable(String table);
 
-  RemoteRepo ofPath(String path, {final bool hasPrePath = false});
+  RemoteRepo ofPath(Map<String, String> path);
 
   RemoteRepo fromJson(FromJsonFunc<T> fromJsonFunc);
 

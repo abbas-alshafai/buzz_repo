@@ -10,7 +10,7 @@ abstract class LocalDb<T> {
   bool isInitialized();
   Future close();
   Future<LocalDb> ofTable<T>(String table);
-  Future<LocalDb> ofPath<T>(String path);
+  Future<LocalDb> ofPath<T>(Map<String, String> path);
   Future<int?> add<T>(JsonObject object);
   Future<Result<T>> update<T>(JsonObject object);
   Future<Result<T>> get<T>(IDs ids);
