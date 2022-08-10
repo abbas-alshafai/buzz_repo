@@ -1,3 +1,6 @@
+## 0.0.6
+* added path param to db adapter
+
 ## 0.0.5
 * force version
 

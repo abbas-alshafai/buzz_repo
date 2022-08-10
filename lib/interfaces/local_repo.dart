@@ -7,7 +7,7 @@ import 'json_object.dart';
 abstract class LocalDb<T> {
   LocalDb();
   Future init();
-  bool isInitialized();
+  bool get isInitialized;
   Future close();
   Future<LocalDb> ofTable<T>(String table);
   Future<LocalDb> ofPath<T>(Map<String, String> path);

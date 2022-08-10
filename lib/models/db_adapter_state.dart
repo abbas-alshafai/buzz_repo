@@ -9,11 +9,13 @@ class DbAdapterState {
   final LocalDb? localDb;
   final bool bypassRemote;
   final bool bypassLocal;
+  final bool isOnline;
 
   DbAdapterState({
     this.remoteRepo,
     this.localDb,
     this.bypassRemote = false,
     this.bypassLocal = false,
+    this.isOnline = true,
   });
 }
