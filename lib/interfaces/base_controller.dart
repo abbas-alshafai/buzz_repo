@@ -34,10 +34,22 @@ class BaseController<T> {
     List<dynamic>? arrayContainsAny,
     List<dynamic>? whereIn,
     bool? isNull,
-    int limit = 10,
+    int limit = 1000,
   }) async {
     try {
-      return await service.getAll<T>();
+      return await service.getAll<T>(
+        field: field,
+        isEqualTo: isEqualTo,
+        isLessThan: isLessThan,
+        isLessThanOrEqualTo: isLessThanOrEqualTo,
+        isGreaterThan: isGreaterThan,
+        isGreaterThanOrEqualTo: isGreaterThanOrEqualTo,
+        arrayContains: arrayContains,
+        arrayContainsAny: arrayContainsAny,
+        whereIn: whereIn,
+        isNull: isNull,
+        limit: limit,
+      );
     } catch (e) {
       return Result.error(msg: e.toString());
     }

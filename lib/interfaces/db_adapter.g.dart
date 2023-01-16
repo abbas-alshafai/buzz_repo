@@ -11,7 +11,7 @@ abstract class _$DbAdapterCWProxy<T> {
 
   DbAdapter<T> hasRemotePriority(bool hasRemotePriority);
 
-  DbAdapter<T> path(Map<String, IDs> path);
+  DbAdapter<T> paths(List<RepoPath> paths);
 
   DbAdapter<T> state(DbAdapterState? state);
 
@@ -26,7 +26,7 @@ abstract class _$DbAdapterCWProxy<T> {
   DbAdapter<T> call({
     T Function(Map<String, Object?>?)? fromJson,
     bool? hasRemotePriority,
-    Map<String, IDs>? path,
+    List<RepoPath>? paths,
     DbAdapterState? state,
     String? tableName,
   });
@@ -47,7 +47,7 @@ class _$DbAdapterCWProxyImpl<T> implements _$DbAdapterCWProxy<T> {
       this(hasRemotePriority: hasRemotePriority);
 
   @override
-  DbAdapter<T> path(Map<String, IDs> path) => this(path: path);
+  DbAdapter<T> paths(List<RepoPath> paths) => this(paths: paths);
 
   @override
   DbAdapter<T> state(DbAdapterState? state) => this(state: state);
@@ -66,7 +66,7 @@ class _$DbAdapterCWProxyImpl<T> implements _$DbAdapterCWProxy<T> {
   DbAdapter<T> call({
     Object? fromJson = const $CopyWithPlaceholder(),
     Object? hasRemotePriority = const $CopyWithPlaceholder(),
-    Object? path = const $CopyWithPlaceholder(),
+    Object? paths = const $CopyWithPlaceholder(),
     Object? state = const $CopyWithPlaceholder(),
     Object? tableName = const $CopyWithPlaceholder(),
   }) {
@@ -80,10 +80,10 @@ class _$DbAdapterCWProxyImpl<T> implements _$DbAdapterCWProxy<T> {
           ? _value.hasRemotePriority
           // ignore: cast_nullable_to_non_nullable
           : hasRemotePriority as bool,
-      path: path == const $CopyWithPlaceholder() || path == null
-          ? _value.path
+      paths: paths == const $CopyWithPlaceholder() || paths == null
+          ? _value.paths
           // ignore: cast_nullable_to_non_nullable
-          : path as Map<String, IDs>,
+          : paths as List<RepoPath>,
       state: state == const $CopyWithPlaceholder()
           ? _value.state
           // ignore: cast_nullable_to_non_nullable

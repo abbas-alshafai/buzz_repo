@@ -1,3 +1,4 @@
+import 'package:buzz_repo/models/repo_path.dart';
 import 'package:buzz_result/models/result.dart';
 
 import '../models/ids.dart';
@@ -11,7 +12,7 @@ abstract class RemoteRepo<T> {
 
   RemoteRepo ofTable(String table);
 
-  RemoteRepo ofPath(Map<String, String> path);
+  RemoteRepo ofPath(List<RemoteRepoPath> path);
 
   RemoteRepo fromJson(FromJsonFunc<T> fromJsonFunc);
 
@@ -28,12 +29,12 @@ abstract class RemoteRepo<T> {
     final String? orderByField,
     final bool descending = false,
     final Object? field,
-    final Map<String, String>? isEqualTo,
-    final Object? isNotEqualTo,
-    final Object? isLessThan,
-    final Object? isLessThanOrEqualTo,
-    final Object? isGreaterThan,
-    final Object? isGreaterThanOrEqualTo,
+    final bool? isEqualTo,
+    final bool? isNotEqualTo,
+    final bool? isLessThan,
+    final bool? isLessThanOrEqualTo,
+    final bool? isGreaterThan,
+    final bool? isGreaterThanOrEqualTo,
     final Object? arrayContains,
     final List<Object?>? arrayContainsAny,
     final List<Object?>? whereIn,

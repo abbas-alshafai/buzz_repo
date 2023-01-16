@@ -7,6 +7,7 @@ import 'package:buzz_repo/interfaces/local_repo.dart';
 import 'package:buzz_repo/interfaces/remote_repo.dart';
 import 'package:buzz_repo/models/db_adapter_state.dart';
 import 'package:buzz_repo/models/ids.dart';
+import 'package:buzz_repo/models/repo_path.dart';
 import 'package:buzz_repo/models/sync_dto.dart';
 import 'package:buzz_repo/utils/sync_utils.dart';
 import 'package:buzz_result/models/result.dart';
@@ -18,19 +19,18 @@ part 'db_adapter.g.dart';
 // TODO - add maximum duration on remote trans
 @CopyWith()
 class DbAdapter<T> {
-
   final DbAdapterState? state;
 
   final FromJsonFunc<T> fromJson;
   final String tableName;
-  final Map<String, IDs> path;
+  final List<RepoPath> paths;
   final bool hasRemotePriority;
 
   DbAdapter({
     this.state,
     required this.fromJson,
     required this.tableName,
-    required this.path,
+    required this.paths,
     this.hasRemotePriority = false,
   });
 
@@ -39,7 +39,8 @@ class DbAdapter<T> {
 
   bool get includeRemoteTransactions =>
       state?.isOnline == true &&
-          !(state?.bypassRemote ?? false) && state?.remoteRepo != null;
+      !(state?.bypassRemote ?? false) &&
+      state?.remoteRepo != null;
 
   bool get isLocalOnly =>
       includeLocalTransactions && !includeRemoteTransactions;
@@ -70,12 +71,13 @@ class DbAdapter<T> {
           dto = dto.copyWithIDs(IDs.localId(result));
           assert(Logger.debug('successfully added locally'));
         } catch (e, st) {
-          Logger.error(
-            st,
-            '$tableName: An error occurred while locally adding.\n${e
-                .toString()}',
+          final log = Log(
+            stacktrace: st,
+            msg:
+                '$tableName: An error occurred while locally adding.\n${e.toString()}',
           );
-          Result.error(msg: e.toString(), stacktrace: st);
+          Logger.log(log: log);
+          Result.error(msg: e.toString(), stacktrace: st, log: log);
         }
       }
 
@@ -112,8 +114,7 @@ class DbAdapter<T> {
           final result = await localDb!.add<T>(dto);
         } catch (e, st) {
           Logger.error(st,
-              '$tableName: adding object to local repo has failed.\n${e
-                  .toString()}');
+              '$tableName: adding object to local repo has failed.\n${e.toString()}');
         }
       }
 
@@ -143,7 +144,6 @@ class DbAdapter<T> {
       if (!includeRemoteTransactions) {
         return Result.success(obj: dto as T?);
       }
-
 
       // final remoteResult = await remoteRepo!.add<T>(dto);
       final remoteResult = await remoteRepo!.addById<T>(dto);
@@ -181,7 +181,7 @@ class DbAdapter<T> {
       if (includeRemoteTransactions &&
           StringUtils.instance.isNotBlank(ids.id)) {
         final remoteResult = await remoteRepo!.get<T>(ids);
-        if (remoteResult.isSuccessfulObj) {
+        if (remoteResult.isSuccessfulObj && includeLocalTransactions) {
           await localDb!.add<T>(remoteResult.obj as JsonObject<T>);
         }
         return remoteResult;
@@ -333,7 +333,7 @@ class DbAdapter<T> {
           if (result.hasFailed) {
             Logger.error(
               StackTrace.current,
-              '$tableName: A failure occurred when locally getting all objects',
+              '$tableName: A failure occurred when locally getting all objects.\n${result.log?.error}',
             );
           } else if (result.isSuccessfulObj) {
             return Result.success(obj: result.obj!.whereType<T>().toList());
@@ -365,7 +365,7 @@ class DbAdapter<T> {
         } else {
           Logger.error(
             StackTrace.current,
-            '$tableName: A failure occurred when remotely getting all objects',
+            '$tableName: A failure occurred when remotely getting all objects.\n${result.log?.error}',
           );
         }
       }
@@ -429,34 +429,33 @@ class DbAdapter<T> {
 
       return Result.success(obj: result);
     } catch (e, st) {
-      Logger.error(
-        st,
-        'An error occurred while saving out-of-sync record.',
+      final log = Log.e(
+        'An error occurred while saving out-of-sync record.\n$e',
+        stacktrace: st,
       );
-      return Result.error(msg: 'An error while saving out of sync record');
+      Logger.log(log: log);
+      return Result.error(log: log);
     }
   }
 
-  Map<String, String> get localPath {
-    final Map<String, String> map = {};
-    for (final key in path.keys) {
-      final ids = path[key];
-      if (ids?.localId != null) {
-        map[key] = ids!.localId.toString();
+  List<LocalRepoPath> get localPath {
+    return paths.where((element) => element.ids.localId != null).map((e) {
+      if (e.ids.localId == null) {
+        Logger.error(StackTrace.current, 'Path ${e.path} has a null local id');
+        throw ArgumentError('Path ${e.path} has a null id');
       }
-    }
-    return {};
+      return LocalRepoPath(path: e.path, id: e.ids.localId);
+    }).toList();
   }
 
-  Map<String, String> get remotePath {
-    final Map<String, String> map = {};
-    for (final key in path.keys) {
-      final ids = path[key];
-      if (ids?.localId != null) {
-        map[key] = ids!.id.toString();
+  List<RemoteRepoPath> get remotePath {
+    return paths.where((element) => element.ids.id != null).map((e) {
+      if (e.ids.id == null) {
+        Logger.error(StackTrace.current, 'Path ${e.path} has a null id');
+        throw ArgumentError('Path ${e.path} has a null id');
       }
-    }
-    return {};
+      return RemoteRepoPath(path: e.path, id: e.ids.id ?? '');
+    }).toList();
   }
 
   Future<LocalDb?> localRepo({final String? table}) async {
@@ -474,7 +473,9 @@ class DbAdapter<T> {
   }
 
   RemoteRepo? get remoteRepo {
-    return state?.remoteRepo?.ofPath(remotePath).ofTable(tableName).fromJson(
-        fromJson);
+    return state?.remoteRepo
+        ?.ofPath(remotePath)
+        .ofTable(tableName)
+        .fromJson(fromJson);
   }
 }

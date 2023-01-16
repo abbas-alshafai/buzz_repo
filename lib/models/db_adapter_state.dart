@@ -15,7 +15,7 @@ class DbAdapterState {
     this.remoteRepo,
     this.localDb,
     this.bypassRemote = false,
-    this.bypassLocal = false,
+    this.bypassLocal = true,
     this.isOnline = true,
   });
 }

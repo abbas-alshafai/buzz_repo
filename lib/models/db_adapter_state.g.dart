@@ -11,6 +11,8 @@ abstract class _$DbAdapterStateCWProxy {
 
   DbAdapterState bypassRemote(bool bypassRemote);
 
+  DbAdapterState isOnline(bool isOnline);
+
   DbAdapterState localDb(LocalDb<dynamic>? localDb);
 
   DbAdapterState remoteRepo(RemoteRepo<dynamic>? remoteRepo);
@@ -24,6 +26,7 @@ abstract class _$DbAdapterStateCWProxy {
   DbAdapterState call({
     bool? bypassLocal,
     bool? bypassRemote,
+    bool? isOnline,
     LocalDb<dynamic>? localDb,
     RemoteRepo<dynamic>? remoteRepo,
   });
@@ -44,6 +47,9 @@ class _$DbAdapterStateCWProxyImpl implements _$DbAdapterStateCWProxy {
       this(bypassRemote: bypassRemote);
 
   @override
+  DbAdapterState isOnline(bool isOnline) => this(isOnline: isOnline);
+
+  @override
   DbAdapterState localDb(LocalDb<dynamic>? localDb) => this(localDb: localDb);
 
   @override
@@ -61,6 +67,7 @@ class _$DbAdapterStateCWProxyImpl implements _$DbAdapterStateCWProxy {
   DbAdapterState call({
     Object? bypassLocal = const $CopyWithPlaceholder(),
     Object? bypassRemote = const $CopyWithPlaceholder(),
+    Object? isOnline = const $CopyWithPlaceholder(),
     Object? localDb = const $CopyWithPlaceholder(),
     Object? remoteRepo = const $CopyWithPlaceholder(),
   }) {
@@ -75,6 +82,10 @@ class _$DbAdapterStateCWProxyImpl implements _$DbAdapterStateCWProxy {
               ? _value.bypassRemote
               // ignore: cast_nullable_to_non_nullable
               : bypassRemote as bool,
+      isOnline: isOnline == const $CopyWithPlaceholder() || isOnline == null
+          ? _value.isOnline
+          // ignore: cast_nullable_to_non_nullable
+          : isOnline as bool,
       localDb: localDb == const $CopyWithPlaceholder()
           ? _value.localDb
           // ignore: cast_nullable_to_non_nullable

@@ -1,4 +1,5 @@
 
+import 'package:buzz_repo/models/repo_path.dart';
 import 'package:buzz_result/models/result.dart';
 
 import '../models/ids.dart';
@@ -10,7 +11,7 @@ abstract class LocalDb<T> {
   bool get isInitialized;
   Future close();
   Future<LocalDb> ofTable<T>(String table);
-  Future<LocalDb> ofPath<T>(Map<String, String> path);
+  Future<LocalDb> ofPath<T>(List<LocalRepoPath> path);
   Future<int?> add<T>(JsonObject object);
   Future<Result<T>> update<T>(JsonObject object);
   Future<Result<T>> get<T>(IDs ids);

@@ -67,6 +67,7 @@ class BaseService<T> {
         arrayContainsAny: arrayContainsAny,
         whereIn: whereIn,
         isNull: isNull,
+        limit: limit,
         // query: query,
         // startAfterDoc: startAfterDoc,
       );
